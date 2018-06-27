@@ -1,0 +1,46 @@
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
+  <modelVersion>4.0.0</modelVersion>
+  <parent>
+    <groupId>org.nuxeo.onlyoffice</groupId>
+    <artifactId>nuxeo-onlyoffice-parent</artifactId>
+    <version>10.1</version>
+    <relativePath>../pom.xml</relativePath>
+  </parent>
+
+  <artifactId>nuxeo-onlyoffice-package</artifactId>
+  <version>10.1</version>
+  <packaging>zip</packaging>
+  <name>Nuxeo onlyoffice package - Only office integration</name>
+
+  <dependencies>
+    <!-- Base distribution(s) for the MP -->
+    <dependency>
+      <groupId>org.nuxeo.ecm.distribution</groupId>
+      <artifactId>nuxeo-nxr-server</artifactId>
+      <type>zip</type>
+      <scope>provided</scope>
+    </dependency>
+
+    <!-- Additional bundles to be deployed by the MP -->
+    <dependency>
+      <groupId>org.nuxeo.onlyoffice</groupId>
+      <artifactId>nuxeo-onlyoffice-core</artifactId>
+    </dependency>
+  </dependencies>
+
+  <build>
+    <plugins>
+      <plugin>
+        <groupId>org.nuxeo.build</groupId>
+        <artifactId>ant-assembly-maven-plugin</artifactId>
+        <configuration>
+          <buildFiles>
+            <buildFile>${basedir}/src/main/assemble/assembly.xml</buildFile>
+          </buildFiles>
+        </configuration>
+      </plugin>
+    </plugins>
+  </build>
+
+
+</project>
