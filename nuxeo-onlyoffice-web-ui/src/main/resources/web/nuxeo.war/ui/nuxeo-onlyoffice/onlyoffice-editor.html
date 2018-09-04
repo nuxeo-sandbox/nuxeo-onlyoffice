@@ -1,0 +1,294 @@
+<!--
+@license
+(C) Copyright Nuxeo Corp. (http://nuxeo.com/)
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+-->
+
+<link rel="import" href="../../polymer/polymer.html">
+<link rel="import" href="../../iron-icon/iron-icon.html">
+<link rel="import" href="../../iron-icons/iron-icons.html">
+<link rel="import" href="../../iron-icons/social-icons.html">
+<link rel="import" href="../../paper-icon-button/paper-icon-button.html">
+<link rel="import" href="../../paper-tooltip/paper-tooltip.html">
+<link rel="import" href="../../paper-input/paper-input.html">
+<link rel="import" href="../../paper-button/paper-button.html">
+<link rel="import" href="../widgets/nuxeo-dialog.html">
+<link rel="import" href="../nuxeo-i18n-behavior.html">
+<link rel="import" href="../nuxeo-filters-behavior.html">
+<link rel="import" href="../nuxeo-icons.html">
+
+<!--
+A button element for editing a document in OnlyOffice
+
+Example:
+
+    <onlyoffice-editor document="[[document]]"></onlyoffice-editor>
+
+@group Nuxeo UI
+@element onlyoffice-editor
+-->
+<dom-module id="onlyoffice-editor"> <template>
+    <style>
+      :host {
+        display: inline-block;
+      }
+
+      #close-icon {
+        position: absolute;
+        right: -12px;
+        top: -12px;
+        width: 25px;
+        height: 25px;
+        border: 1px solid rgba(0, 0, 0, 0.4);
+        padding: 3px;
+        background: var(--paper-input-container-invalid-color);
+        color: var(--nuxeo-button-primary-text);
+      }
+
+      #close-icon:hover {
+        border-color: var(--nuxeo-primary-color);
+      }
+
+      nuxeo-dialog {
+        width: 100%;
+        height: 100%;
+        min-width: 480px;
+      }
+
+      nuxeo-dialog>iframe {
+        height: 100%;
+        width: 100%;
+      }
+
+      nuxeo-dialog>* {
+        margin: 0;
+        padding: 0;
+      }
+
+      iframe {
+        height: 100%;
+        min-height: 60vh;
+        width: 100%;
+        border: none;
+        padding: 0;
+        margin: 0;
+      }
+    </style>
+
+    <nuxeo-connection id="nxConn" user="{{user}}"></nuxeo-connection> <template is="dom-if" if="[[_isAvailable(document)]]">
+      <paper-icon-button icon="[[icon]]" on-click="_openEditor" noink></paper-icon-button>
+      <paper-tooltip>[[label]]</paper-tooltip>
+
+      <nuxeo-dialog on-iron-overlay-closed="_editorClosed" id="dialog" with-backdrop> <iframe id="editor" src="[[iFrameSource]]"></iframe>
+        <paper-icon-button id="close-icon" icon="nuxeo:clear" on-click="_toggleDialog" noink></paper-icon-button>
+      </nuxeo-dialog>
+    </template>
+  </template>
+  <script>
+    Polymer({
+      is: 'onlyoffice-editor',
+      behaviors: [Nuxeo.I18nBehavior, Nuxeo.FiltersBehavior],
+      properties: {
+        document: Object,
+
+        user: Object,
+
+        token: String,
+
+        iFrameSource: String,
+
+        label: {
+          type: String,
+          value: 'Edit in OnlyOffice'
+        },
+
+        icon: {
+          type: String,
+          value: 'icons:group-work'
+        },
+
+        mode: {
+          type: String,
+          value: 'desktop'
+        },
+
+        xpath: {
+          type: String,
+          value: 'file:content'
+        },
+
+        textTypes: {
+          type: Array,
+          readOnly: true,
+          value: [
+            "application/msword",
+            "application/vnd.ms-word.document.macroenabled.12",
+            "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+            "application/vnd.ms-word.template.macroenabled.12",
+            "application/vnd.openxmlformats-officedocument.wordprocessingml.template"
+          ]
+        },
+
+        spreadsheetTypes: {
+          type: Array,
+          readOnly: true,
+          value: [
+            "application/vnd.ms-excel",
+            "application/vnd.ms-excel.sheet.macroenabled.12",
+            "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+            "application/vnd.ms-excel.template.macroenabled.12",
+            "application/vnd.openxmlformats-officedocument.spreadsheetml.template"
+          ]
+        },
+
+        presentationTypes: {
+          type: Array,
+          readOnly: true,
+          value: [
+            "application/vnd.ms-powerpoint",
+            "application/vnd.ms-powerpoint.presentation.macroenabled.12",
+            "application/vnd.openxmlformats-officedocument.presentationml.presentation",
+            "application/vnd.ms-powerpoint.slideshow.macroenabled.12",
+            "application/vnd.openxmlformats-officedocument.presentationml.slideshow",
+            "application/vnd.ms-powerpoint.template.macroenabled.12",
+            "application/vnd.openxmlformats-officedocument.presentationml.template",
+            "application/vnd.openxmlformats-officedocument.presentationml.slide"
+          ]
+        }
+      },
+
+      _isAvailable: function (document) {
+        if (document.properties[this.xpath]) {
+          var mime = document.properties[this.xpath]['mime-type'];
+          if (this.textTypes.indexOf(mime) >= 0 ||
+            this.presentationTypes.indexOf(mime) >= 0 ||
+            this.spreadsheetTypes.indexOf(mime) >= 0) {
+            return true;
+          }
+        }
+        return false;
+      },
+
+      _openEditor: function () {
+        if (this.token) {
+          this._tokenResponse();
+        } else {
+          return this._resolveToken();
+        }
+      },
+
+      _tokenResponse: function () {
+        if (this.token) {
+          if (this.document.properties[this.xpath]) {
+            this.iFrameSource = this._computeIFrameSource();
+            this.$$('#dialog').toggle();
+          } else {
+            this.fire('notify', {
+              message: "No editable file found"
+            })
+          }
+        } else {
+          this.fire('notify', {
+            message: "No editor available"
+          })
+        }
+      },
+
+      _computeDocType: function (mime) {
+        if (this.presentationTypes.indexOf(mime) >= 0) {
+          return "presentation";
+        } else if (this.spreadsheetTypes.indexOf(mime) >= 0) {
+          return "spreadsheet";
+        }
+        return "text";
+      },
+
+      _computeIFrameSource: function () {
+        var source = "nuxeo-onlyoffice/onlyoffice-session.jsp?token=" + this.token + "&id=" + this.document.uid;
+        source += "&mode=" + this.mode;
+        if (this.document.properties[this.xpath]) {
+          source += "&fname=" + encodeURIComponent(this.document.properties[this.xpath].name);
+          source += "&key=" + encodeURIComponent(this.document.properties[this.xpath].digest);
+          source += "&type=" + this._computeDocType(this.document.properties[this.xpath]['mime-type']);
+        }
+        if (this.user) {
+          source += "&user=" + encodeURIComponent(this.user.id);
+        }
+        return source;
+      },
+
+      _editorClosed: function () {
+        this.iFrameSource = "about:blank";
+        this.async(this._refresh, 10500);
+      },
+
+      _refresh: function () {
+        this.fire('document-updated');
+      },
+
+      _toggleDialog() {
+        this.$$('#dialog').toggle();
+      },
+
+      /** Resolve the token */
+      _resolveToken: function () {
+        const options = {
+          method: 'get',
+          headers: {
+            accept: 'text/plain,application/json'
+          }
+        };
+        const params = {
+          "applicationName": "OnlyOffice",
+          "deviceId": "editor",
+          "deviceDescription": "Browser",
+          "permission": "rw"
+        };
+        return this.$.nxConn.request().then((request) => {
+          this._request = request;
+          return this._doExecute(params, options);
+        });
+      },
+
+      _doExecute: function (params, options) {
+        return this._request
+          .path('../../../../authentication/token')
+          .queryParams(params)
+          .execute(options)
+          .then((response) => response.text().then((text) => {
+            try {
+              this.token = text;
+              this._tokenResponse();
+              return this.token;
+            } catch (e) {
+              return null;
+            }
+          }))
+          .catch((error) => {
+            this.token = null;
+            if (error.response) {
+              if (error.response.status === 401) {
+                this.dispatchEvent(new CustomEvent('unauthorized-request', {
+                  bubbles: true,
+                  composed: true,
+                  detail: error,
+                }));
+              }
+              throw error;
+            }
+          })
+      }
+    });
+  </script>
+</dom-module>

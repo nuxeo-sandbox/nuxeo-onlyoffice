@@ -1,9 +1,0 @@
-Bundle-ActivationPolicy: lazy
-Bundle-ClassPath: .
-Manifest-Version: 1.0
-Bundle-Vendor: org.nuxeo.onlyoffice
-Bundle-Version: 1.0.0
-Bundle-Name: nuxeo-onlyoffice-core
-Bundle-ManifestVersion: 2
-Bundle-SymbolicName: org.nuxeo.onlyoffice.nuxeo-onlyoffice-core;singleton=true
-Nuxeo-Component: OSGI-INF/CoreExtensions.xml,OSGI-INF/onlyoffice-operation-contrib.xml
