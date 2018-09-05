@@ -5,6 +5,7 @@ import java.io.InputStream;
 import java.net.HttpURLConnection;
 import java.net.URL;
 import java.nio.charset.Charset;
+import java.util.List;
 
 import javax.ws.rs.Consumes;
 import javax.ws.rs.POST;
@@ -96,15 +97,11 @@ public class OnlyOfficeResource extends DefaultObject {
     public Response postCallback(@PathParam("id") String id, @PathParam("xpath") String xpath, InputStream input) {
 
         /**
-         * (from https://api.onlyoffice.com/editors/callback)
-         * Defines the status of the document. Can have the following values:
-         * 0 - no document with the key identifier could be found,
-         * 1 - document is being edited,
-         * 2 - document is ready for saving,
-         * 3 - document saving error has occurred,
-         * 4 - document is closed with no changes,
-         * 6 - document is being edited, but the current document state is saved,
-         * 7 - error has occurred while force saving the document.
+         * (from https://api.onlyoffice.com/editors/callback) Defines the status of the document. Can have the following
+         * values: 0 - no document with the key identifier could be found, 1 - document is being edited, 2 - document is
+         * ready for saving, 3 - document saving error has occurred, 4 - document is closed with no changes, 6 -
+         * document is being edited, but the current document state is saved, 7 - error has occurred while force saving
+         * the document.
          */
         try {
             String json = IOUtils.toString(input, Charset.defaultCharset());
@@ -114,13 +111,20 @@ public class OnlyOfficeResource extends DefaultObject {
                 this.logger.debug("JSON: " + json);
                 this.logger.debug(callback.toString());
             }
-            
+
             this.logger.warn(callback.toString());
 
             int status = callback.getStatus();
-            if (status >= 2 && status <= 6) {
+            if (status >= 1 && status <= 6) {
                 CoreSession session = getContext().getCoreSession();
                 DocumentModel model = session.getDocument(new IdRef(id));
+
+                // Record editors for current document
+                List<String> editors = callback.getUsers();
+                if (!model.hasFacet("onlyoffice")) {
+                    model.addFacet("onlyoffice");
+                }
+                model.setProperty("onlyoffice", "editors", editors);
 
                 if (callback.isModified() && callback.getUrl() != null) {
                     BlobHolder blobHolder = model.getAdapter(BlobHolder.class);
@@ -147,7 +151,7 @@ public class OnlyOfficeResource extends DefaultObject {
 
                 // Remove lock obtained on edit request
                 // Don't unlock on status 6
-                if (status != 6 && model.isLocked()) {
+                if (status >= 2 && status < 6 && model.isLocked()) {
                     model.removeLock();
                 }
 

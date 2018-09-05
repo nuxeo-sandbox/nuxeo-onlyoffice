@@ -19,7 +19,11 @@
       <type>zip</type>
       <scope>provided</scope>
     </dependency>
-    <!-- Additional bundles to be deployed by the MP -->
+    <!-- Additional libraries to be deployed by the MP -->
+    <dependency>
+      <groupId>org.nuxeo.onlyoffice</groupId>
+      <artifactId>nuxeo-onlyoffice-core</artifactId>
+    </dependency>
     <dependency>
       <groupId>org.nuxeo.onlyoffice</groupId>
       <artifactId>nuxeo-onlyoffice-rest</artifactId>

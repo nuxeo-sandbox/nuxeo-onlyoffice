@@ -17,6 +17,7 @@
   <packaging>pom</packaging>
 
   <modules>
+    <module>nuxeo-onlyoffice-core</module>
     <module>nuxeo-onlyoffice-rest</module>
     <module>nuxeo-onlyoffice-web-ui</module>
     <module>nuxeo-onlyoffice-package</module>

@@ -102,13 +102,24 @@ Example:
         margin: 0;
       }
 
+      paper-badge {
+        --paper-badge-background: var(--nuxeo-badge-background);
+        --paper-badge-margin-left: -24px;
+        --paper-badge-margin-bottom: -24px;
+        --paper-badge-width: 16px;
+        --paper-badge-height: 16px;
+      }
+
     </style>
 
     <nuxeo-connection id="nxConn" user="{{user}}"></nuxeo-connection>
     <nuxeo-operation id="opLock" op="Document.Lock" input="[[document.uid]]" headers='{"X-NXfetch.document": "lock"}'></nuxeo-operation>
     <template is="dom-if" if="[[_isAvailable(document)]]">
-      <paper-icon-button icon="[[icon]]" on-click="_openEditor" noink></paper-icon-button>
+      <paper-icon-button id="ooButton" icon="[[icon]]" on-click="_openEditor" noink></paper-icon-button>
       <paper-tooltip>[[label]]</paper-tooltip>
+      <template is="dom-if" if="[[badge]]">
+        <paper-badge id="ooBadge" label="[[badge]]" for="ooButton"></paper-badge>
+      </template>
 
       <nuxeo-dialog on-iron-overlay-closed="_editorClosed" id="dialog" with-backdrop>
         <iframe id="editor" src="[[iFrameSource]]"></iframe>
@@ -120,15 +131,22 @@ Example:
   <script>
     Polymer({
       is: 'onlyoffice-editor',
-      behaviors: [Nuxeo.I18nBehavior, Nuxeo.FiltersBehavior],
+      behaviors: [Nuxeo.I18nBehavior, Nuxeo.FiltersBehavior, Polymer.IronResizableBehavior],
       properties: {
-        document: Object,
+        document: {
+          type: Object,
+          observer: '_documentChanged'
+        },
 
         user: Object,
 
         token: String,
 
         iFrameSource: String,
+
+        badge: String,
+
+        offset: Number,
 
         label: {
           type: String,
@@ -187,10 +205,33 @@ Example:
             "application/vnd.openxmlformats-officedocument.presentationml.template",
             "application/vnd.openxmlformats-officedocument.presentationml.slide"
           ]
+        },
+
+        listeners: {
+          'iron-resize': '_resize'
+        },
+
+      },
+
+      ready: function () {
+        this.async(this._resize, 1000);
+      },
+
+      _resize: function () {
+        if (this.badge) {
+          var buttonEl = this.$$('#ooButton');
+          var badgeEl = this.$$('#ooBadge');
+          if (badgeEl && buttonEl) {
+            badgeEl.notifyResize();
+          }
+          if (this.offset != buttonEl.offsetLeft || badgeEl.offsetLeft != buttonEl.offsetLeft + buttonEl.offsetWidth) {
+            this.offset = buttonEl.offsetLeft;
+            this.async(this._resize, 1000);
+          }
         }
       },
 
-      _isAvailable: function(document) {
+      _isAvailable: function (document) {
         if (document.properties[this.xpath]) {
           var mime = document.properties[this.xpath]['mime-type'];
           if (this.textTypes.indexOf(mime) >= 0 ||
@@ -202,7 +243,19 @@ Example:
         return false;
       },
 
-      _openEditor: function() {
+      _documentChanged: function () {
+        if (this._isEditMode() && this.document) {
+          var len = this.document.properties['oo:editors'].length
+          if (len > 0) {
+            this.badge = len.toString();
+            this.label = "Editing in progress: " + this.document.properties['oo:editors'].join(', ')
+          } else {
+            this.badge = null;
+          }
+        }
+      },
+
+      _openEditor: function () {
         if (this.token) {
           this._tokenResponse();
         } else {
@@ -210,7 +263,7 @@ Example:
         }
       },
 
-      _tokenResponse: function() {
+      _tokenResponse: function () {
         if (this.token) {
           if (this.document.properties[this.xpath]) {
             this.iFrameSource = this._computeIFrameSource();
@@ -230,11 +283,11 @@ Example:
         }
       },
 
-      _isEditMode: function() {
+      _isEditMode: function () {
         return this.mode !== 'embedded';
       },
 
-      _computeDocType: function(mime) {
+      _computeDocType: function (mime) {
         if (this.presentationTypes.indexOf(mime) >= 0) {
           return "presentation";
         } else if (this.spreadsheetTypes.indexOf(mime) >= 0) {
@@ -243,7 +296,7 @@ Example:
         return "text";
       },
 
-      _computeIFrameSource: function() {
+      _computeIFrameSource: function () {
         var source = "nuxeo-onlyoffice/onlyoffice-session.jsp?token=" + this.token + "&id=" + this.document.uid;
         source += "&mode=" + this.mode;
         if (this.document.properties[this.xpath]) {
@@ -257,7 +310,7 @@ Example:
         return source;
       },
 
-      _editorClosed: function() {
+      _editorClosed: function () {
         this.iFrameSource = "about:blank";
         if (this._isEditMode()) {
           this._refresh();
@@ -265,22 +318,22 @@ Example:
         }
       },
 
-      _refresh: function() {
+      _refresh: function () {
         this.fire('document-updated');
       },
 
-      _toggleDialog: function() {
+      _toggleDialog: function () {
         this.$$('#dialog').toggle();
       },
 
-      _openInNew: function() {
-    	  this._toggleDialog();
-    	  this.iFrameSource = "about:blank";
-    	  window.open(this._computeIFrameSource(), '_blank');
+      _openInNew: function () {
+        this._toggleDialog();
+        this.iFrameSource = "about:blank";
+        window.open(this._computeIFrameSource(), '_blank');
       },
 
       /** Resolve the token */
-      _resolveToken: function() {
+      _resolveToken: function () {
         const options = {
           method: 'get',
           headers: {
@@ -299,7 +352,7 @@ Example:
         });
       },
 
-      _doExecute: function(params, options) {
+      _doExecute: function (params, options) {
         return this._request
           .path('../../../../authentication/token')
           .queryParams(params)
