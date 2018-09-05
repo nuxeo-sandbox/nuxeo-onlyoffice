@@ -5,12 +5,12 @@
   <parent>
     <groupId>org.nuxeo.ecm.distribution</groupId>
     <artifactId>nuxeo-distribution</artifactId>
-    <version>10.1</version>
+    <version>10.2</version>
   </parent>
 
   <groupId>org.nuxeo.onlyoffice</groupId>
   <artifactId>nuxeo-onlyoffice</artifactId>
-  <version>10.1-SNAPSHOT</version>
+  <version>10.2-SNAPSHOT</version>
 
   <name>Nuxeo OnlyOffice</name>
   <description>Nuxeo OnlyOffice Integration</description>
