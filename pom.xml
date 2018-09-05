@@ -5,12 +5,12 @@
   <parent>
     <groupId>org.nuxeo.ecm.distribution</groupId>
     <artifactId>nuxeo-distribution</artifactId>
-    <version>10.2-SNAPSHOT</version>
+    <version>10.1</version>
   </parent>
 
   <groupId>org.nuxeo.onlyoffice</groupId>
   <artifactId>nuxeo-onlyoffice</artifactId>
-  <version>10.2-SNAPSHOT</version>
+  <version>10.1-SNAPSHOT</version>
 
   <name>Nuxeo OnlyOffice</name>
   <description>Nuxeo OnlyOffice Integration</description>
@@ -66,17 +66,6 @@
       </releases>
       <snapshots>
         <updatePolicy>daily</updatePolicy>
-        <enabled>true</enabled>
-      </snapshots>
-    </repository>
-    <repository>
-      <id>nuxeo-studio</id>
-      <url>https://connect.nuxeo.com/nuxeo/site/studio/maven</url>
-      <releases>
-        <enabled>true</enabled>
-      </releases>
-      <snapshots>
-        <updatePolicy>always</updatePolicy>
         <enabled>true</enabled>
       </snapshots>
     </repository>

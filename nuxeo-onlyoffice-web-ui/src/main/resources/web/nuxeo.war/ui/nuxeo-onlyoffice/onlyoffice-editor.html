@@ -84,6 +84,7 @@ Example:
         padding: 0;
         margin: 0;
       }
+
     </style>
 
     <nuxeo-connection id="nxConn" user="{{user}}"></nuxeo-connection> <template is="dom-if" if="[[_isAvailable(document)]]">
@@ -230,7 +231,9 @@ Example:
 
       _editorClosed: function () {
         this.iFrameSource = "about:blank";
-        this.async(this._refresh, 10500);
+        if (this.mode !== 'embedded') {
+          this.async(this._refresh, 10500);
+        }
       },
 
       _refresh: function () {
@@ -290,5 +293,6 @@ Example:
           })
       }
     });
+
   </script>
 </dom-module>
