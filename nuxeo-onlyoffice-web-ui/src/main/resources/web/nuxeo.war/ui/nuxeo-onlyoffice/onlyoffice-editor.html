@@ -59,6 +59,22 @@ Example:
       #close-icon:hover {
         border-color: var(--nuxeo-primary-color);
       }
+            
+      #open-in-new {
+        position: absolute;
+        right: 12px;
+        top: -12px;
+        width: 25px;
+        height: 25px;
+        border: 1px solid rgba(0, 0, 0, 0.4);
+        padding: 3px;
+        background: var(--nuxeo-secondary-color);
+        color: var(--nuxeo-button-primary-text);
+      }
+
+      #open-in-new:hover {
+        border-color: var(--nuxeo-primary-color);
+      }
 
       nuxeo-dialog {
         width: 100%;
@@ -91,7 +107,9 @@ Example:
       <paper-icon-button icon="[[icon]]" on-click="_openEditor" noink></paper-icon-button>
       <paper-tooltip>[[label]]</paper-tooltip>
 
-      <nuxeo-dialog on-iron-overlay-closed="_editorClosed" id="dialog" with-backdrop> <iframe id="editor" src="[[iFrameSource]]"></iframe>
+      <nuxeo-dialog on-iron-overlay-closed="_editorClosed" id="dialog" with-backdrop>
+        <iframe id="editor" src="[[iFrameSource]]"></iframe>
+        <paper-icon-button id="open-in-new" icon="icons:open-in-new" on-click="_openInNew" noink></paper-icon-button>
         <paper-icon-button id="close-icon" icon="nuxeo:clear" on-click="_toggleDialog" noink></paper-icon-button>
       </nuxeo-dialog>
     </template>
@@ -169,7 +187,7 @@ Example:
         }
       },
 
-      _isAvailable: function (document) {
+      _isAvailable: function(document) {
         if (document.properties[this.xpath]) {
           var mime = document.properties[this.xpath]['mime-type'];
           if (this.textTypes.indexOf(mime) >= 0 ||
@@ -181,7 +199,7 @@ Example:
         return false;
       },
 
-      _openEditor: function () {
+      _openEditor: function() {
         if (this.token) {
           this._tokenResponse();
         } else {
@@ -189,7 +207,7 @@ Example:
         }
       },
 
-      _tokenResponse: function () {
+      _tokenResponse: function() {
         if (this.token) {
           if (this.document.properties[this.xpath]) {
             this.iFrameSource = this._computeIFrameSource();
@@ -206,7 +224,7 @@ Example:
         }
       },
 
-      _computeDocType: function (mime) {
+      _computeDocType: function(mime) {
         if (this.presentationTypes.indexOf(mime) >= 0) {
           return "presentation";
         } else if (this.spreadsheetTypes.indexOf(mime) >= 0) {
@@ -215,7 +233,7 @@ Example:
         return "text";
       },
 
-      _computeIFrameSource: function () {
+      _computeIFrameSource: function() {
         var source = "nuxeo-onlyoffice/onlyoffice-session.jsp?token=" + this.token + "&id=" + this.document.uid;
         source += "&mode=" + this.mode;
         if (this.document.properties[this.xpath]) {
@@ -229,23 +247,29 @@ Example:
         return source;
       },
 
-      _editorClosed: function () {
+      _editorClosed: function() {
         this.iFrameSource = "about:blank";
         if (this.mode !== 'embedded') {
           this.async(this._refresh, 10500);
         }
       },
 
-      _refresh: function () {
+      _refresh: function() {
         this.fire('document-updated');
       },
 
-      _toggleDialog() {
+      _toggleDialog: function() {
         this.$$('#dialog').toggle();
+      },
+      
+      _openInNew: function() {
+    	  this._toggleDialog();
+    	  this.iFrameSource = "about:blank";
+    	  window.open(this._computeIFrameSource(), '_blank');
       },
 
       /** Resolve the token */
-      _resolveToken: function () {
+      _resolveToken: function() {
         const options = {
           method: 'get',
           headers: {
@@ -264,7 +288,7 @@ Example:
         });
       },
 
-      _doExecute: function (params, options) {
+      _doExecute: function(params, options) {
         return this._request
           .path('../../../../authentication/token')
           .queryParams(params)
