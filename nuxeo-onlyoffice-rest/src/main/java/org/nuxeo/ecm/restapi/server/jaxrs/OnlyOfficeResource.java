@@ -25,8 +25,8 @@ import org.nuxeo.ecm.core.api.DocumentModel;
 import org.nuxeo.ecm.core.api.IdRef;
 import org.nuxeo.ecm.core.api.VersioningOption;
 import org.nuxeo.ecm.core.api.blobholder.BlobHolder;
+import org.nuxeo.ecm.core.api.versioning.VersioningService;
 import org.nuxeo.ecm.core.schema.FacetNames;
-import org.nuxeo.ecm.core.versioning.VersioningService;
 import org.nuxeo.ecm.webengine.model.WebObject;
 import org.nuxeo.ecm.webengine.model.impl.DefaultObject;
 import org.nuxeo.runtime.api.Framework;
@@ -95,6 +95,17 @@ public class OnlyOfficeResource extends DefaultObject {
     @Consumes(MediaType.APPLICATION_JSON)
     public Response postCallback(@PathParam("id") String id, @PathParam("xpath") String xpath, InputStream input) {
 
+        /**
+         * (from https://api.onlyoffice.com/editors/callback)
+         * Defines the status of the document. Can have the following values:
+         * 0 - no document with the key identifier could be found,
+         * 1 - document is being edited,
+         * 2 - document is ready for saving,
+         * 3 - document saving error has occurred,
+         * 4 - document is closed with no changes,
+         * 6 - document is being edited, but the current document state is saved,
+         * 7 - error has occurred while force saving the document.
+         */
         try {
             String json = IOUtils.toString(input, Charset.defaultCharset());
             OnlyOfficeCallback callback = this.callbackReader.readValue(json);
@@ -103,29 +114,41 @@ public class OnlyOfficeResource extends DefaultObject {
                 this.logger.debug("JSON: " + json);
                 this.logger.debug(callback.toString());
             }
+            
+            this.logger.warn(callback.toString());
 
-            if (callback.isModified() && (callback.getStatus() == 2 || callback.getStatus() == 3)) {
+            int status = callback.getStatus();
+            if (status >= 2 && status <= 6) {
                 CoreSession session = getContext().getCoreSession();
                 DocumentModel model = session.getDocument(new IdRef(id));
-                BlobHolder blobHolder = model.getAdapter(BlobHolder.class);
 
-                Blob original = blobHolder.getBlob();
+                if (callback.isModified() && callback.getUrl() != null) {
+                    BlobHolder blobHolder = model.getAdapter(BlobHolder.class);
+                    Blob original = blobHolder.getBlob();
 
-                URL url = new URL(callback.getUrl());
-                HttpURLConnection connection = (HttpURLConnection) url.openConnection();
+                    URL url = new URL(callback.getUrl());
+                    HttpURLConnection connection = (HttpURLConnection) url.openConnection();
 
-                Blob saved = null;
-                try (InputStream stream = connection.getInputStream()) {
-                    saved = Blobs.createBlob(stream, original.getMimeType(), original.getEncoding());
-                    saved.setFilename(original.getFilename());
-                } finally {
-                    connection.disconnect();
+                    Blob saved = null;
+                    try (InputStream stream = connection.getInputStream()) {
+                        saved = Blobs.createBlob(stream, original.getMimeType(), original.getEncoding());
+                        saved.setFilename(original.getFilename());
+                    } finally {
+                        connection.disconnect();
+                    }
+
+                    blobHolder.setBlob(saved);
+
+                    // Status is 2 or 3
+                    if (status < 4 && this.versionOnSave) {
+                        saveVersion(model, callback.getStatus() == 2);
+                    }
                 }
 
-                blobHolder.setBlob(saved);
-
-                if (this.versionOnSave) {
-                    saveVersion(model, callback.getStatus() == 2);
+                // Remove lock obtained on edit request
+                // Don't unlock on status 6
+                if (status != 6 && model.isLocked()) {
+                    model.removeLock();
                 }
 
                 session.saveDocument(model);
