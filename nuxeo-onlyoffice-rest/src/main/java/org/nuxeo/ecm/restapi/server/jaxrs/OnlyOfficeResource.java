@@ -104,7 +104,7 @@ public class OnlyOfficeResource extends DefaultObject {
                 this.logger.debug(callback.toString());
             }
 
-            if (callback.isModified() && callback.getStatus() == 2 || callback.getStatus() == 3) {
+            if (callback.isModified() && (callback.getStatus() == 2 || callback.getStatus() == 3)) {
                 CoreSession session = getContext().getCoreSession();
                 DocumentModel model = session.getDocument(new IdRef(id));
                 BlobHolder blobHolder = model.getAdapter(BlobHolder.class);
