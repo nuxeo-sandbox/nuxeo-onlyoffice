@@ -244,7 +244,7 @@ Example:
       },
 
       _documentChanged: function () {
-        if (this._isEditMode() && this.document) {
+        if (this._isEditMode() && this.document && this.document.properties['oo:editors']) {
           var len = this.document.properties['oo:editors'].length
           if (len > 0) {
             this.badge = len.toString();
@@ -252,6 +252,8 @@ Example:
           } else {
             this.badge = null;
           }
+        } else {
+          this.badge = null;
         }
       },
 
