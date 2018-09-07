@@ -6,34 +6,34 @@ import java.util.List;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
 
-@JsonIgnoreProperties(value = { "changeshistory", "history", "actions" })
+@JsonIgnoreProperties(ignoreUnknown = true)
 public class OnlyOfficeCallback {
 
-    @JsonProperty(value = "changesurl")
+    @JsonProperty("changesurl")
     private String changesUrl = null;
 
-    @JsonProperty(value = "forcesavetype")
+    @JsonProperty("forcesavetype")
     private int forceSaveType = 0;
 
-    @JsonProperty(value = "key")
-    private String key;
+    @JsonProperty("key")
+    private String key = null;
 
-    @JsonProperty(value = "status")
-    private int status;
+    @JsonProperty("status")
+    private int status = 0;
 
-    @JsonProperty(value = "url")
-    private String url;
+    @JsonProperty("url")
+    private String url = null;
 
-    @JsonProperty(value = "userdata")
-    private String userData;
+    @JsonProperty("userdata")
+    private String userData = null;
 
-    @JsonProperty(value = "users")
-    private List<String> users;
+    @JsonProperty("users")
+    private List<String> users = null;
 
-    @JsonProperty(value = "lastsave")
-    private Date lastSave;
+    @JsonProperty("lastsave")
+    private Date lastSave = null;
 
-    @JsonProperty(value = "notmodified")
+    @JsonProperty("notmodified")
     private boolean notModified = true;
 
     public OnlyOfficeCallback() {
