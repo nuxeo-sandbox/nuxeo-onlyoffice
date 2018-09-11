@@ -15,6 +15,48 @@ mvn clean install
 
 > Install with `nuxeoctl mp-install <package>`
 
+## Configure (nuxeo.conf)
+
+Editor properties:
+
+```
+onlyoffice.url.api=http://onlyoffice/web-apps/apps/api/documents/api.js  # URL to editor api.js service
+onlyoffice.version.save=true|false                                       # Create version on save
+```
+
+Conversion properties:
+
+```
+onlyoffice.url.conversion=http://onlyoffice/ConvertService.ashx     # URL to conversion service (see ONLYOFFICE docs)
+onlyoffice.conversion.wait=1000                                     # Number of millisecond to wait between polling async request
+```
+
+## Use Conversion Service
+
+Invoke the conversion service to transform between a variety of content types.  By default, the [contribution](/nuxeo-onlyoffice-core/src/main/resources/OSGI-INF/onlyoffice-conversion-contrib.xml) will support PDF as a destination type.  See the [ONLYOFFICE Conversion API](https://api.onlyoffice.com/editors/conversionapi) for a full conversion matrix.
+
+```xml
+  <extension target="org.nuxeo.ecm.platform.rendition.service.RenditionService" point="renditionDefinitions">
+    <renditionDefinition name="onlyoffice">
+      <label>label.rendition.onlyofficepdf</label>
+      <icon>/icons/note.gif</icon>
+      <contentType>application/pdf</contentType>
+      <operationChain>onlyofficePdf</operationChain>
+      <storeByDefault>false</storeByDefault>
+    </renditionDefinition>
+  </extension>
+
+  <extension target="org.nuxeo.ecm.core.operation.OperationServiceComponent" point="chains">
+    <chain id="onlyofficePdf">
+      <operation id="Context.PopBlob"/>
+      <operation id="Blob.RunConverter">
+        <param name="converter" type="string">office2pdf</param>
+        <param name="parameters" type="properties">async=false</param>
+      </operation>
+    </chain>
+  </extension>
+```
+
 ## Support
 
 **These features are sand-boxed and not yet part of the Nuxeo Production platform.**
