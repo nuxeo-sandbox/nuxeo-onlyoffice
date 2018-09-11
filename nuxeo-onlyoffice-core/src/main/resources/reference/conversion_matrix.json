@@ -1,0 +1,19 @@
+[{
+		"name": "text",
+		"input": ["doc", "docm", "docx", "dot", "dotm", "dotx", "epub", "fodt", "html", "mht", "odt", "ott", "pdf", "rtf", "txt", "xps"],
+		"output": ["bmp", "docx", "gif", "jpg", "odt", "pdf", "png", "rtf", "txt"],
+		"disallowed": ["docx-docx", "odt-odt", "pdf-docx", "pdf-odt", "pdf-pdf", "pdf-rtf", "pdf-txt", "rtf-rtf", "txt-txt", "xps-docx", "xps-odt", "xps-rtf", "xps-txt"]
+	},
+	{
+		"name": "spreadsheet",
+		"input": ["csv", "fods", "ods", "ots", "xls", "xlsm", "xlsx", "xlt", "xltm", "xltx"],
+		"output": ["bmp", "csv", "gif", "jpg", "ods", "pdf", "png", "xlsx"],
+		"disallowed": ["csv-csv", "ods-ods", "xlsx-xlsx"]
+	},
+	{
+		"name": "presentation",
+		"input": ["fodp", "odp", "otp", "pot", "potm", "potx", "pps", "ppsm", "ppsx", "ppt", "pptm", "pptx"],
+		"output": ["bmp", "gif", "jpg", "odp", "pdf", "png", "pptx"],
+		"disallowed": ["odp-odp", "pptx-pptx"]
+	}
+]

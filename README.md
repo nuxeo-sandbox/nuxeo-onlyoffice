@@ -35,6 +35,19 @@ onlyoffice.conversion.wait=1000                                     # Number of 
 
 Invoke the conversion service to transform between a variety of content types.  By default, the [contribution](/nuxeo-onlyoffice-core/src/main/resources/OSGI-INF/onlyoffice-conversion-contrib.xml) will support PDF as a destination type.  See the [ONLYOFFICE Conversion API](https://api.onlyoffice.com/editors/conversionapi) for a full conversion matrix.
 
+### Conversion Parameters
+
+|Key      |Description|Allowable Values|
+|---------|-----------|----------------|
+|async    |Async Processing|true, false     |
+|srcType  |Source Type|allowable type  |
+|destType |Dest Type|allowable type  |
+|codePage |Code Page|code page ref   |
+|delimiter|Delimiter|delimiter ref   |
+|thumbnail|Thumbnail|true, false, (height):(width):(aspect)|
+
+### Rendition example
+
 ```xml
   <extension target="org.nuxeo.ecm.platform.rendition.service.RenditionService" point="renditionDefinitions">
     <renditionDefinition name="onlyoffice">

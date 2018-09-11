@@ -25,6 +25,7 @@ import org.nuxeo.runtime.api.Framework;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.ObjectReader;
 import com.fasterxml.jackson.databind.ObjectWriter;
@@ -47,6 +48,18 @@ public class OnlyOfficeConverter implements ExternalConverter {
    */
   public static final String CONV_WAIT = "onlyoffice.conversion.wait";
 
+  public static final String CONV_PARAM_ASYNC = "async";
+
+  public static final String CONV_PARAM_SRC_TYPE = "srcType";
+
+  public static final String CONV_PARAM_DEST_TYPE = "destType";
+
+  public static final String CONV_PARAM_CODE_PAGE = "codePage";
+
+  public static final String CONV_PARAM_DELIMITER = "delimiter";
+
+  public static final String CONV_PARAM_THUMBNAIL = "thumbnail";
+
   private ConverterDescriptor descriptor = null;
 
   private MimetypeRegistry mimeTypeRegistry = null;
@@ -62,6 +75,8 @@ public class OnlyOfficeConverter implements ExternalConverter {
   private ObjectWriter requestWriter = null;
 
   private ObjectReader responseReader = null;
+
+  private List<ConversionCompatibility> compat = null;
 
   public OnlyOfficeConverter() {
     super();
@@ -80,6 +95,13 @@ public class OnlyOfficeConverter implements ExternalConverter {
     ObjectMapper mapper = new ObjectMapper();
     this.requestWriter = mapper.writerFor(ConversionRequest.class);
     this.responseReader = mapper.readerFor(ConversionResponse.class);
+
+    try (InputStream in = getClass().getResourceAsStream("/reference/conversion_matrix.json")) {
+      this.compat = mapper.readValue(in, new TypeReference<List<ConversionCompatibility>>() {
+      });
+    } catch (IOException iox) {
+
+    }
   }
 
   private String getParam(Map<String, Serializable> parameters, String key, String defVal) {
@@ -94,7 +116,23 @@ public class OnlyOfficeConverter implements ExternalConverter {
     Blob originalBlob = blobHolder.getBlob();
     String path = blobHolder.getFilePath();
 
+    String srcType = findType(originalBlob.getMimeType(), originalBlob);
     String destType = findType(this.descriptor.getDestinationMimeType(), null);
+
+    // Check compatibility
+    boolean compatConversion = false;
+    for (ConversionCompatibility cc : this.compat) {
+      if (cc.accepts(srcType, destType)) {
+        compatConversion = true;
+        break;
+      }
+    }
+    if (!compatConversion) {
+      String errMsg = String.format("Incompatible conversion: %s -> %s for blob %s", srcType, destType,
+          originalBlob.getFilename());
+      LOG.error(errMsg);
+      throw new ConversionException(errMsg);
+    }
 
     TokenAuthenticationService tokens = Framework.getService(TokenAuthenticationService.class);
     String token = null;
@@ -110,18 +148,27 @@ public class OnlyOfficeConverter implements ExternalConverter {
 
       // Create request
       ConversionRequest request = new ConversionRequest();
-      request.setAsync("true".equals(getParam(parameters, "async", "true")));
+      request.setAsync("true".equals(getParam(parameters, CONV_PARAM_ASYNC, "true")));
       request.setKey(storeKey);
 
-      request.setFileType(findType(originalBlob.getMimeType(), originalBlob));
+      request.setFileType(srcType);
 
       request.setOutputType(destType);
       request.setTitle(newFilename(originalBlob.getFilename(), destType));
       request.setUrl(url);
 
-      // TODO: delimiter, code page, thumbnail
-      // request.setDelimiter(delimiter);
-      // request.setCodePage(codePage);
+      if ("csv".equals(srcType)) {
+        handleCodePage(request, parameters);
+        handleDelimeter(request, parameters);
+      } else if ("txt".equals(srcType)) {
+        handleCodePage(request, parameters);
+      }
+
+      if ("bmp".equals(destType) || "gif".equals(destType) || "jpg".equals(destType) || "png".equals(destType)) {
+        if (parameters.containsKey("thumbnail")) {
+          handleThumbnail(request, parameters);
+        }
+      }
 
       LOG.warn("{}", request);
 
@@ -132,6 +179,70 @@ public class OnlyOfficeConverter implements ExternalConverter {
       tokens.revokeToken(token);
     }
     return new SimpleBlobHolder(conversion);
+  }
+
+  private void handleDelimeter(ConversionRequest request, Map<String, Serializable> parameters) {
+    Serializable value = parameters.get(CONV_PARAM_DELIMITER);
+    int delimiter = ConversionConstants.DELIMITER_COMMA;
+    if (value != null) {
+      if (";".equals(value)) {
+        delimiter = ConversionConstants.DELIMITER_SEMICOLON;
+      } else if (":".equals(value)) {
+        delimiter = ConversionConstants.DELIMITER_COLON;
+      } else {
+        try {
+          delimiter = Integer.parseInt(value.toString());
+          if (delimiter < 0 || delimiter > 5) {
+            delimiter = ConversionConstants.DELIMITER_COMMA;
+            LOG.warn("Delimiter setting is invalid, ignoring: " + value);
+          }
+        } catch (NumberFormatException nfe) {
+          LOG.warn("Delimiter setting is invalid, ignoring: " + value, nfe);
+        }
+      }
+    }
+    request.setDelimiter(delimiter);
+  }
+
+  private void handleCodePage(ConversionRequest request, Map<String, Serializable> parameters) {
+    Serializable value = parameters.get(CONV_PARAM_CODE_PAGE);
+    int code = ConversionConstants.CODE_UNICODE;
+    if (value != null) {
+      // TODO: Check reference table (?)
+      try {
+        code = Integer.parseInt(value.toString());
+      } catch (NumberFormatException nfe) {
+        LOG.warn("Code page setting is invalid, ignoring: " + value, nfe);
+      }
+    }
+    request.setCodePage(code);
+  }
+
+  private void handleThumbnail(ConversionRequest request, Map<String, Serializable> parameters) {
+    Serializable value = parameters.get(CONV_PARAM_THUMBNAIL);
+    if (!"false".equals(value)) {
+      return;
+    }
+    ConversionRequest.Thumbnail thumb = request.createThumbnail();
+    if (value != null) {
+      if ("true".equals(value)) {
+        return;
+      }
+      String[] size = value.toString().split(":");
+      try {
+        if (size.length > 0) {
+          thumb.setHeight(Integer.parseInt(size[0]));
+        }
+        if (size.length > 1) {
+          thumb.setWidth(Integer.parseInt(size[1]));
+        }
+        if (size.length > 2) {
+          thumb.setAspect(Integer.parseInt(size[2]));
+        }
+      } catch (NumberFormatException nfe) {
+        LOG.warn("Height/Width/Aspect setting for thumbnail is not specific, ignoring: " + value, nfe);
+      }
+    }
   }
 
   private String findType(String mimeType, Blob blob) {
