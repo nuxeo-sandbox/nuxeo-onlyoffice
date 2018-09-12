@@ -89,8 +89,11 @@ public class OnlyOfficeConverter implements ExternalConverter {
 
     this.descriptor = descriptor;
     this.endpoint = Framework.getProperty(CONV_URL);
-    // XXX: number type
-    this.waitTime = Long.parseLong(Framework.getProperty(CONV_WAIT, "1000"));
+    try {
+      this.waitTime = Long.parseLong(Framework.getProperty(CONV_WAIT, "1000"));
+    } catch (NumberFormatException nfe) {
+      LOG.warn("Async Wait Time setting is invalid, ignoring: " + Framework.getProperty(CONV_WAIT), nfe);
+    }
 
     ObjectMapper mapper = new ObjectMapper();
     this.requestWriter = mapper.writerFor(ConversionRequest.class);
@@ -104,20 +107,13 @@ public class OnlyOfficeConverter implements ExternalConverter {
     }
   }
 
-  private String getParam(Map<String, Serializable> parameters, String key, String defVal) {
-    if (parameters.containsKey(key)) {
-      return String.valueOf(parameters.get(key));
-    }
-    return defVal;
-  }
-
   @Override
   public BlobHolder convert(BlobHolder blobHolder, Map<String, Serializable> parameters) throws ConversionException {
     Blob originalBlob = blobHolder.getBlob();
     String path = blobHolder.getFilePath();
 
-    String srcType = findType(originalBlob.getMimeType(), originalBlob);
-    String destType = findType(this.descriptor.getDestinationMimeType(), null);
+    String srcType = findType(originalBlob.getMimeType(), originalBlob, parameters.get(CONV_PARAM_SRC_TYPE));
+    String destType = findType(this.descriptor.getDestinationMimeType(), null, parameters.get(CONV_PARAM_DEST_TYPE));
 
     // Check compatibility
     boolean compatConversion = false;
@@ -208,7 +204,7 @@ public class OnlyOfficeConverter implements ExternalConverter {
     Serializable value = parameters.get(CONV_PARAM_CODE_PAGE);
     int code = ConversionConstants.CODE_UNICODE;
     if (value != null) {
-      // TODO: Check reference table (?)
+      // TODO: Check reference table
       try {
         code = Integer.parseInt(value.toString());
       } catch (NumberFormatException nfe) {
@@ -235,6 +231,8 @@ public class OnlyOfficeConverter implements ExternalConverter {
         }
         if (size.length > 1) {
           thumb.setWidth(Integer.parseInt(size[1]));
+        } else if (size.length > 0) {
+          thumb.setWidth(thumb.getHeight());
         }
         if (size.length > 2) {
           thumb.setAspect(Integer.parseInt(size[2]));
@@ -245,7 +243,14 @@ public class OnlyOfficeConverter implements ExternalConverter {
     }
   }
 
-  private String findType(String mimeType, Blob blob) {
+  private String getParam(Map<String, Serializable> parameters, String key, String defVal) {
+    if (parameters.containsKey(key)) {
+      return String.valueOf(parameters.get(key));
+    }
+    return defVal;
+  }
+
+  private String findType(String mimeType, Blob blob, Serializable param) {
     if (mimeType == null && blob != null) {
       mimeType = blob.getMimeType();
       if (mimeType == null) {
@@ -259,6 +264,8 @@ public class OnlyOfficeConverter implements ExternalConverter {
       if (!types.isEmpty()) {
         return types.get(0);
       }
+    } else if (param != null) {
+      return param.toString();
     }
 
     throw new ConversionException("Unable to locate extension for type: " + mimeType);
