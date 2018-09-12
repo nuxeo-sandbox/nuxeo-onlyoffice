@@ -4,6 +4,10 @@
 
 In-browser integration of Nuxeo Platform and [ONLYOFFICE](https://www.onlyoffice.com/).
 
+## Dependencies
+
+[ONLYOFFICE](https://www.onlyoffice.com/) Document Server (Run a [Docker](https://github.com/ONLYOFFICE/Docker-DocumentServer) image)
+
 ## Build and Install
 
 Build with maven (at least 3.3)
@@ -30,6 +34,8 @@ Conversion properties:
 onlyoffice.url.conversion=http://onlyoffice/ConvertService.ashx     # URL to conversion service (see ONLYOFFICE docs)
 onlyoffice.conversion.wait=1000                                     # Number of millisecond to wait between polling async request
 ```
+
+> (!) When using Docker, use an accessible hostname for the IP URLs.
 
 ## Use Conversion Service
 
