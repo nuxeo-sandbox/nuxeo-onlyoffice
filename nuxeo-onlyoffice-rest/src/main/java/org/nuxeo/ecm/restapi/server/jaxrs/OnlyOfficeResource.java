@@ -2,10 +2,9 @@ package org.nuxeo.ecm.restapi.server.jaxrs;
 
 import java.io.IOException;
 import java.io.InputStream;
-import java.net.HttpURLConnection;
-import java.net.URL;
 import java.nio.charset.Charset;
 import java.util.List;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 import javax.ws.rs.Consumes;
 import javax.ws.rs.POST;
@@ -17,8 +16,6 @@ import javax.ws.rs.core.Response;
 import javax.ws.rs.core.Response.Status;
 
 import org.apache.commons.io.IOUtils;
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
 import org.nuxeo.ecm.core.api.Blob;
 import org.nuxeo.ecm.core.api.Blobs;
 import org.nuxeo.ecm.core.api.CoreSession;
@@ -31,9 +28,16 @@ import org.nuxeo.ecm.core.schema.FacetNames;
 import org.nuxeo.ecm.webengine.model.WebObject;
 import org.nuxeo.ecm.webengine.model.impl.DefaultObject;
 import org.nuxeo.runtime.api.Framework;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.ObjectReader;
+import com.sun.jersey.api.client.Client;
+import com.sun.jersey.api.client.ClientResponse;
+import com.sun.jersey.api.client.WebResource;
+import com.sun.jersey.api.client.config.ClientConfig;
+import com.sun.jersey.api.client.config.DefaultClientConfig;
 
 /**
  * This web object implements the Callback functionality specified by the OnlyOffice API. See:
@@ -44,7 +48,7 @@ import com.fasterxml.jackson.databind.ObjectReader;
 @Produces(MediaType.APPLICATION_JSON)
 public class OnlyOfficeResource extends DefaultObject {
 
-    protected static final Log log = LogFactory.getLog(OnlyOfficeResource.class);
+    protected static final Logger LOG = LoggerFactory.getLogger(OnlyOfficeResource.class);
 
     /**
      * OnlyOffice api.js URL
@@ -56,11 +60,22 @@ public class OnlyOfficeResource extends DefaultObject {
      */
     public static final String VERSION_ON_SAVE = "onlyoffice.version.save";
 
-    private Log logger = null;
-
     protected boolean versionOnSave = false;
 
-    private ObjectReader callbackReader = null;
+    private static final ObjectReader CALLBACK;
+
+    private static final Client CLIENT;
+
+    private static final AtomicBoolean CONNECTED = new AtomicBoolean(false);
+
+    static {
+        ObjectMapper mapper = new ObjectMapper();
+        CALLBACK = mapper.readerFor(OnlyOfficeCallback.class);
+
+        ClientConfig cc = new DefaultClientConfig();
+        cc.getProperties().put(ClientConfig.PROPERTY_FOLLOW_REDIRECTS, true);
+        CLIENT = Client.create(cc);
+    }
 
     /*
      * (non-Javadoc)
@@ -68,18 +83,38 @@ public class OnlyOfficeResource extends DefaultObject {
      */
     @Override
     protected void initialize(Object... args) {
-        this.logger = getContext().getLog();
-
-        ObjectMapper mapper = new ObjectMapper();
-        this.callbackReader = mapper.readerFor(OnlyOfficeCallback.class);
 
         this.versionOnSave = "true".equalsIgnoreCase(Framework.getProperty(VERSION_ON_SAVE, "false"));
 
+        // Obtain API URL
         String apiUrl = Framework.getProperty(URL_API);
         if (apiUrl == null || "".equals(apiUrl.trim())) {
-            this.logger.warn("ONLYOFFICE api.js URL has not been set, please set `onlyoffice.url.api` in nuxeo.conf."
+            LOG.warn("ONLYOFFICE api.js URL has not been set, please set `onlyoffice.url.api` in nuxeo.conf."
                     + "\n  onlyoffice.url.api=http://onlyoffice.host/web-apps/apps/api/documents/api.js");
         }
+
+        // Test client
+        if (!CONNECTED.get()) {
+            CONNECTED.set(testAPIConnection(apiUrl));
+        }
+    }
+
+    private boolean testAPIConnection(String url) {
+        WebResource resource = CLIENT.resource(url);
+        WebResource.Builder builder = resource.accept("application/javascript");
+        boolean success = false;
+        try {
+            ClientResponse response = builder.get(ClientResponse.class);
+            if (response.getStatus() < 200 || response.getStatus() >= 400) {
+                LOG.warn("Unable to reach ONLYOFFICE API: {}", response.getStatusInfo());
+            } else {
+                LOG.info("Connected to ONLYOFFICE Editor [{}] ({})", url, response.getStatus());
+                success = true;
+            }
+        } catch (Exception ex) {
+            LOG.warn("Error connecting to ONLYOFFICE API", ex);
+        }
+        return success;
     }
 
     /**
@@ -105,14 +140,14 @@ public class OnlyOfficeResource extends DefaultObject {
          */
         try {
             String json = IOUtils.toString(input, Charset.defaultCharset());
-            OnlyOfficeCallback callback = this.callbackReader.readValue(json);
+            OnlyOfficeCallback callback = CALLBACK.readValue(json);
 
-            if (this.logger.isDebugEnabled()) {
-                this.logger.debug("JSON: " + json);
-                this.logger.debug(callback.toString());
+            if (LOG.isDebugEnabled()) {
+                LOG.debug("JSON: {}", json);
+                LOG.debug(callback.toString());
             }
 
-            this.logger.warn(callback.toString());
+            LOG.warn(callback.toString());
 
             int status = callback.getStatus();
             if (status >= 1 && status <= 6) {
@@ -130,15 +165,16 @@ public class OnlyOfficeResource extends DefaultObject {
                     BlobHolder blobHolder = model.getAdapter(BlobHolder.class);
                     Blob original = blobHolder.getBlob();
 
-                    URL url = new URL(callback.getUrl());
-                    HttpURLConnection connection = (HttpURLConnection) url.openConnection();
+                    WebResource resource = CLIENT.resource(callback.getUrl());
+                    WebResource.Builder builder = resource.accept(MediaType.WILDCARD);
 
                     Blob saved = null;
-                    try (InputStream stream = connection.getInputStream()) {
+                    ClientResponse response = builder.get(ClientResponse.class);
+                    try (InputStream stream = response.getEntityInputStream()) {
                         saved = Blobs.createBlob(stream, original.getMimeType(), original.getEncoding());
                         saved.setFilename(original.getFilename());
                     } finally {
-                        connection.disconnect();
+                        response.close();
                     }
 
                     blobHolder.setBlob(saved);
@@ -159,7 +195,7 @@ public class OnlyOfficeResource extends DefaultObject {
                 session.save();
             }
         } catch (IOException iox) {
-            this.logger.error("Error saving ONLYOFFICE callback", iox);
+            LOG.error("Error saving ONLYOFFICE callback", iox);
             return Response.status(Status.INTERNAL_SERVER_ERROR).entity("{\"error\":1}").build();
         }
 
@@ -168,7 +204,7 @@ public class OnlyOfficeResource extends DefaultObject {
 
     private DocumentModel saveVersion(DocumentModel doc, boolean major) {
         if (!doc.hasFacet(FacetNames.VERSIONABLE)) {
-            this.logger.warn("Unable to save version for OnlyOffice document: '" + doc.getId() + "'");
+            LOG.warn("Unable to save version for OnlyOffice document: '{}'", doc.getId());
             return doc;
         }
 

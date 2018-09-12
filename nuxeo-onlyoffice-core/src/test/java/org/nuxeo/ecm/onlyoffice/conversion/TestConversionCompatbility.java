@@ -1,3 +1,5 @@
+package org.nuxeo.ecm.onlyoffice.conversion;
+
 import java.io.IOException;
 import java.io.InputStream;
 import java.util.List;
@@ -5,7 +7,6 @@ import java.util.List;
 import org.junit.Assert;
 import org.junit.BeforeClass;
 import org.junit.Test;
-import org.nuxeo.ecm.onlyoffice.conversion.ConversionCompatibility;
 
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -23,14 +24,12 @@ public class TestConversionCompatbility {
     } catch (IOException iox) {
 
     }
-
   }
 
   boolean check(String srcType, String destType) {
     boolean compatConversion = false;
     for (ConversionCompatibility cc : MATRIX) {
       if (cc.accepts(srcType, destType)) {
-        System.out.println(srcType + "-" + destType + ": " + cc);
         compatConversion = true;
         break;
       }
