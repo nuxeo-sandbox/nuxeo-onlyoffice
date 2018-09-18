@@ -24,15 +24,19 @@ mvn clean install
 Editor properties:
 
 ```
-onlyoffice.url.api=http://onlyoffice/web-apps/apps/api/documents/api.js  # URL to editor api.js service (required)
-onlyoffice.version.save=true|false                                       # Create version on save (optional, default: false)
+# URL to editor api.js service (required)
+onlyoffice.url.api=http://onlyoffice/web-apps/apps/api/documents/api.js
+# Create version on save (optional, default: false)
+onlyoffice.version.save=true|false
 ```
 
 Conversion properties (Optional):
 
 ```
-onlyoffice.url.conversion=http://onlyoffice/ConvertService.ashx     # URL to conversion service (see ONLYOFFICE docs)
-onlyoffice.conversion.wait=1000                                     # Number of millisecond to wait between polling async request
+# URL to conversion service (see ONLYOFFICE docs)
+onlyoffice.url.conversion=http://onlyoffice/ConvertService.ashx
+# Number of millisecond to wait between polling async request
+onlyoffice.conversion.wait=1000
 ```
 
 > (!) When using Docker, use an accessible hostname for the IP URLs.
