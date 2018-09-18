@@ -163,6 +163,12 @@ Example:
           value: 'desktop'
         },
 
+        editMode: {
+          type: Boolean,
+          value: false,
+          computed: '_isEditMode(mode)'
+        },
+
         xpath: {
           type: String,
           value: 'file:content'
@@ -210,11 +216,10 @@ Example:
         listeners: {
           'iron-resize': '_resize'
         },
-
       },
 
-      ready: function () {
-        this.async(this._resize, 1000);
+      connectedCallback: function () {
+        this._positioner = this.async(this._resize, 1000);
       },
 
       _resize: function () {
@@ -229,6 +234,13 @@ Example:
             this.async(this._resize, 1000);
           }
         }
+      },
+
+      disconnectedCallback: function () {
+        if (this._positioner) {
+          this.cancelAsync(this._positioner);
+        }
+        this._positioner = null;
       },
 
       _isAvailable: function (document) {
@@ -269,7 +281,7 @@ Example:
         if (this.token) {
           if (this.document.properties[this.xpath]) {
             this.iFrameSource = this._computeIFrameSource();
-            if (this._isEditMode() && this.document && !this.document.lockCreated) {
+            if (this.editMode && this.document && !this.document.lockCreated) {
               this.$.opLock.execute();
             }
             this.$$('#dialog').toggle();
@@ -314,7 +326,7 @@ Example:
 
       _editorClosed: function () {
         this.iFrameSource = "about:blank";
-        if (this._isEditMode()) {
+        if (this.editMode) {
           this._refresh();
           this.async(this._refresh, 10500);
         }

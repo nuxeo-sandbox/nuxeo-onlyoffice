@@ -64,18 +64,15 @@ limitations under the License.
       }
     };
 
-    var onAppReady = function () {
-      innerAlert("Document editor ready");
-    };
-
     var onDocumentStateChange = function (event) {
       var title = document.title.replace(/\*$/g, "");
       document.title = title + (event.data ? "*" : "");
     };
 
     var onError = function (event) {
-      if (event)
+      if (event) {
         innerAlert(event.data);
+      }
     };
 
     var onOutdatedVersion = function (event) {
@@ -154,10 +151,9 @@ limitations under the License.
         "type": mode,
         "width": "100%",
         "events": {
-          "onAppReady": onAppReady,
           "onDocumentStateChange": onDocumentStateChange,
-          "onError": onError,
           "onOutdatedVersion": onOutdatedVersion,
+          "onError": onError,
         }
       };
 
