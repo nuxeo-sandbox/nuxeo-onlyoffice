@@ -24,11 +24,11 @@ mvn clean install
 Editor properties:
 
 ```
-onlyoffice.url.api=http://onlyoffice/web-apps/apps/api/documents/api.js  # URL to editor api.js service
-onlyoffice.version.save=true|false                                       # Create version on save
+onlyoffice.url.api=http://onlyoffice/web-apps/apps/api/documents/api.js  # URL to editor api.js service (required)
+onlyoffice.version.save=true|false                                       # Create version on save (optional, default: false)
 ```
 
-Conversion properties:
+Conversion properties (Optional):
 
 ```
 onlyoffice.url.conversion=http://onlyoffice/ConvertService.ashx     # URL to conversion service (see ONLYOFFICE docs)
@@ -37,9 +37,9 @@ onlyoffice.conversion.wait=1000                                     # Number of 
 
 > (!) When using Docker, use an accessible hostname for the IP URLs.
 
-## Use Conversion Service
+## (Optional) Use Conversion Service
 
-Invoke the conversion service to transform between a variety of content types.  By default, the [contribution](/nuxeo-onlyoffice-core/src/main/resources/OSGI-INF/onlyoffice-conversion-contrib.xml) will support PDF as a destination type.  See the [ONLYOFFICE Conversion API](https://api.onlyoffice.com/editors/conversionapi) for a full conversion matrix.
+Invoke the conversion service to transform between a variety of content types.  By default, the [office2pdf contribution](/nuxeo-onlyoffice-core/src/main/resources/OSGI-INF/onlyoffice-conversion-contrib.xml) will support PDF as a destination type.  See the [ONLYOFFICE Conversion API](https://api.onlyoffice.com/editors/conversionapi) for a full conversion matrix.
 
 ### Conversion Parameters
 
