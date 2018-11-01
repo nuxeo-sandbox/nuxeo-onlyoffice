@@ -27,6 +27,7 @@ limitations under the License.
 <link rel="import" href="../nuxeo-i18n-behavior.html">
 <link rel="import" href="../nuxeo-filters-behavior.html">
 <link rel="import" href="../nuxeo-icons.html">
+<link rel="import" href="../nuxeo-operation.html">
 
 <!--
 A button element for editing a document in OnlyOffice
@@ -112,6 +113,7 @@ Example:
     </style>
 
     <nuxeo-connection id="nxConn" user="{{user}}"></nuxeo-connection>
+    <nuxeo-operation id="opLock" op="Document.Lock" input="[[document.uid]]" headers='{"X-NXfetch.document": "lock"}'></nuxeo-operation>
     <template is="dom-if" if="[[_isAvailable(document)]]">
       <paper-icon-button id="ooButton" icon="[[icon]]" on-click="_openEditor" noink></paper-icon-button>
       <paper-tooltip>[[label]]</paper-tooltip>
@@ -279,6 +281,9 @@ Example:
         if (this.token) {
           if (this.document.properties[this.xpath]) {
             this.iFrameSource = this._computeIFrameSource();
+            if (this.editMode && this.document && !this.document.lockCreated) {
+              this.$.opLock.execute();
+            }
             this.$$('#dialog').toggle();
           } else {
             this.fire('notify', {
@@ -321,8 +326,8 @@ Example:
 
       _editorClosed: function () {
         this.iFrameSource = "about:blank";
-        this._refresh();
         if (this.editMode) {
+          this._refresh();
           this.async(this._refresh, 10500);
         }
       },
