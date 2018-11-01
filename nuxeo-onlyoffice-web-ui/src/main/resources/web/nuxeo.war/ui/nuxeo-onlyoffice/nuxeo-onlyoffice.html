@@ -15,7 +15,7 @@ limitations under the License.
 -->
 <link rel="import" href="onlyoffice-editor.html">
 
-<nuxeo-slot-content name="onlyoffice-edit" slot="DOCUMENT_ACTIONS">
+<nuxeo-slot-content name="onlyoffice-edit" slot="DOCUMENT_ACTIONS" order="-100">
   <template>
     <nuxeo-filter document="[[document]]" type="File" permission="Write">
       <template>
@@ -25,7 +25,7 @@ limitations under the License.
   </template>
 </nuxeo-slot-content>
 
-<nuxeo-slot-content name="onlyoffice-view" slot="DOCUMENT_ACTIONS">
+<nuxeo-slot-content name="onlyoffice-view" slot="DOCUMENT_ACTIONS" order="-101">
   <template>
     <nuxeo-filter document="[[document]]" type="File" permission="Read">
       <template>
