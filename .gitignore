@@ -30,3 +30,4 @@ bin/
 *~bak
 *-bak
 *.bak
+*.versionsBackup
