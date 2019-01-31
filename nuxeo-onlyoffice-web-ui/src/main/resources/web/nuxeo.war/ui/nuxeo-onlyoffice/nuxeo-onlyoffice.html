@@ -34,3 +34,24 @@ limitations under the License.
     </nuxeo-filter>
   </template>
 </nuxeo-slot-content>
+
+<nuxeo-slot-content name="onlyoffice-edit-blob" slot="BLOB_ACTIONS" order="52">
+  <template>
+    <nuxeo-filter document="[[document]]" permission="Write">
+      <template>
+        <onlyoffice-editor document="[[document]]" xpath="[[xpath]]" icon="icons:group-work" label="Edit in OnlyOffice"></onlyoffice-editor>
+      </template>
+    </nuxeo-filter>
+  </template>
+</nuxeo-slot-content>
+
+<nuxeo-slot-content name="onlyoffice-view-blob" slot="BLOB_ACTIONS" order="53">
+  <template>
+    <nuxeo-filter document="[[document]]" permission="Read">
+      <template>
+        <onlyoffice-editor document="[[document]]" xpath="[[xpath]]" icon="icons:settings-overscan" mode="embedded"
+          label="View with OnlyOffice"></onlyoffice-editor>
+      </template>
+    </nuxeo-filter>
+  </template>
+</nuxeo-slot-content>

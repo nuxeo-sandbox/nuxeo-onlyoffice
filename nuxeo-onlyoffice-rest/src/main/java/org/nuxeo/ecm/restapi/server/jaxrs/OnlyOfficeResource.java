@@ -16,6 +16,7 @@ import javax.ws.rs.core.Response;
 import javax.ws.rs.core.Response.Status;
 
 import org.apache.commons.io.IOUtils;
+import org.nuxeo.ecm.automation.core.util.DocumentHelper;
 import org.nuxeo.ecm.core.api.Blob;
 import org.nuxeo.ecm.core.api.Blobs;
 import org.nuxeo.ecm.core.api.CoreSession;
@@ -127,7 +128,7 @@ public class OnlyOfficeResource extends DefaultObject {
      * @throws Exception
      */
     @POST
-    @Path("callback/{id}/{xpath}")
+    @Path("callback/{id}/{xpath:((?:(?!/@).)*)}")
     @Consumes(MediaType.APPLICATION_JSON)
     public Response postCallback(@PathParam("id") String id, @PathParam("xpath") String xpath, InputStream input) {
 
@@ -159,11 +160,15 @@ public class OnlyOfficeResource extends DefaultObject {
                 if (!model.hasFacet("onlyoffice")) {
                     model.addFacet("onlyoffice");
                 }
-                model.setProperty("onlyoffice", "editors", editors);
 
                 if (callback.isModified() && callback.getUrl() != null) {
-                    BlobHolder blobHolder = model.getAdapter(BlobHolder.class);
-                    Blob original = blobHolder.getBlob();
+                    Blob original = (Blob) model.getPropertyValue(xpath);
+                    if (original == null) {
+                        BlobHolder bh = model.getAdapter(BlobHolder.class);
+                        if (bh != null) {
+                            original = bh.getBlob();
+                        }
+                    }
 
                     WebResource resource = CLIENT.resource(callback.getUrl());
                     WebResource.Builder builder = resource.accept(MediaType.WILDCARD);
@@ -177,13 +182,17 @@ public class OnlyOfficeResource extends DefaultObject {
                         response.close();
                     }
 
-                    blobHolder.setBlob(saved);
+                    DocumentHelper.addBlob(model.getProperty(xpath), saved);
 
                     // Status is 2 or 3
                     if (status < 4 && this.versionOnSave) {
                         saveVersion(model, callback.getStatus() == 2);
+                        // Clear editors on save
+                        editors = null;
                     }
                 }
+
+                model.setProperty("onlyoffice", "editors", editors);
 
                 // Remove lock obtained on edit request
                 // Don't unlock on status 6

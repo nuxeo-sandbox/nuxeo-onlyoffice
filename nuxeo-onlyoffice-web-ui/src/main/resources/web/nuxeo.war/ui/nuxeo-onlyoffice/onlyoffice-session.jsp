@@ -117,14 +117,17 @@ limitations under the License.
         return;
       }
 
-      console.log("uid:" + uid + ", mode:" + mode + ", key:" + key +
+      console.log("uid:" + uid + ", mode:" + mode + ", key:" + key + ", xpath: " + xpath +
         ", name:" + fname + " (" + fileType + "), type:" + docType);
 
       var share = location.origin + '/nuxeo/ui/#!/doc/' + uid;
       var blob = location.origin + '/nuxeo/nxfile/default/' + uid +
-        '/blobholder:0/?inline=true&token=' + token;
+        '/' + xpath + '/' + fname + '?inline=true&token=' + token;
       var callback = location.origin + '/nuxeo/api/v1/onlyoffice/callback/' +
         uid + '/' + xpath + '?token=' + token;
+
+      console.log(blob);
+      console.log(callback);
 
       var config = {
         "documentType": docType,

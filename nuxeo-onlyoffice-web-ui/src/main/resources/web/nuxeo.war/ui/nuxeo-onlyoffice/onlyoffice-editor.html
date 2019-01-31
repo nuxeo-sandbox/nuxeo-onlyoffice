@@ -88,14 +88,6 @@ Example:
         margin: 0;
       }
 
-      paper-badge {
-        --paper-badge-background: var(--nuxeo-badge-background);
-        --paper-badge-margin-left: -24px;
-        --paper-badge-margin-bottom: -24px;
-        --paper-badge-width: 16px;
-        --paper-badge-height: 16px;
-      }
-
     </style>
 
     <nuxeo-connection id="nxConn" user="{{user}}"></nuxeo-connection>
@@ -105,10 +97,6 @@ Example:
         <span class="label" hidden$="[[!showLabel]]">[[label]]</span>
       </div>
       <paper-tooltip>[[label]]</paper-tooltip>
-
-      <template is="dom-if" if="[[badge]]">
-        <paper-badge id="ooBadge" label="[[badge]]" for="ooButton"></paper-badge>
-      </template>
 
       <nuxeo-dialog on-iron-overlay-closed="_editorClosed" id="dialog" with-backdrop>
         <iframe id="editor" src="[[iFrameSource]]"></iframe>
@@ -120,12 +108,11 @@ Example:
   <script>
     Polymer({
       is: 'onlyoffice-editor',
-      behaviors: [Nuxeo.I18nBehavior, Nuxeo.FiltersBehavior, Polymer.IronResizableBehavior],
+      behaviors: [Nuxeo.I18nBehavior, Nuxeo.FiltersBehavior],
       properties: {
-        document: {
-          type: Object,
-          observer: '_documentChanged'
-        },
+        document: Object,
+
+        blob: Object,
 
         user: Object,
 
@@ -133,13 +120,16 @@ Example:
 
         iFrameSource: String,
 
-        badge: String,
-
         offset: Number,
 
         label: {
           type: String,
           value: 'Edit in OnlyOffice'
+        },
+
+        showLabel: {
+          type: Boolean,
+          value: false
         },
 
         icon: {
@@ -201,40 +191,22 @@ Example:
             "application/vnd.openxmlformats-officedocument.presentationml.slide"
           ]
         },
-
-        listeners: {
-          'iron-resize': '_resize'
-        },
       },
 
-      connectedCallback: function () {
-        this._positioner = this.async(this._resize, 1000);
-      },
-
-      _resize: function () {
-        if (this.badge) {
-          var buttonEl = this.$$('#ooButton');
-          var badgeEl = this.$$('#ooBadge');
-          if (badgeEl && buttonEl) {
-            badgeEl.notifyResize();
+      _deepFind: function (obj, props) {
+        for (var i = 0, path = props.split('/'), len = path.length; i < len; i++) {
+          if (!obj || obj === []) {
+            break;
           }
-          if (this.offset != buttonEl.offsetLeft || badgeEl.offsetLeft != buttonEl.offsetLeft + buttonEl.offsetWidth) {
-            this.offset = buttonEl.offsetLeft;
-            this.async(this._resize, 1000);
-          }
+          obj = obj[path[i]];
         }
-      },
-
-      disconnectedCallback: function () {
-        if (this._positioner) {
-          this.cancelAsync(this._positioner);
-        }
-        this._positioner = null;
+        return obj;
       },
 
       _isAvailable: function (document) {
-        if (document.properties[this.xpath]) {
-          var mime = document.properties[this.xpath]['mime-type'];
+        this.blob = document && this._deepFind(document.properties, this.xpath);
+        if (this.blob) {
+          var mime = this.blob['mime-type'];
           if (this.textTypes.indexOf(mime) >= 0 ||
             this.presentationTypes.indexOf(mime) >= 0 ||
             this.spreadsheetTypes.indexOf(mime) >= 0) {
@@ -242,20 +214,6 @@ Example:
           }
         }
         return false;
-      },
-
-      _documentChanged: function () {
-        if (this._isEditMode() && this.document && this.document.properties['oo:editors']) {
-          var len = this.document.properties['oo:editors'].length
-          if (len > 0) {
-            this.badge = len.toString();
-            this.label = "Editing in progress: " + this.document.properties['oo:editors'].join(', ')
-          } else {
-            this.badge = null;
-          }
-        } else {
-          this.badge = null;
-        }
       },
 
       _openEditor: function () {
@@ -268,7 +226,7 @@ Example:
 
       _tokenResponse: function () {
         if (this.token) {
-          if (this.document.properties[this.xpath]) {
+          if (this.blob) {
             this.iFrameSource = this._computeIFrameSource();
             this.$$('#dialog').toggle();
           } else {
@@ -299,10 +257,11 @@ Example:
       _computeIFrameSource: function () {
         var source = "nuxeo-onlyoffice/onlyoffice-session.jsp?token=" + this.token + "&id=" + this.document.uid;
         source += "&mode=" + this.mode;
-        if (this.document.properties[this.xpath]) {
-          source += "&fname=" + encodeURIComponent(this.document.properties[this.xpath].name);
-          source += "&key=" + encodeURIComponent(this.document.properties[this.xpath].digest);
-          source += "&type=" + this._computeDocType(this.document.properties[this.xpath]['mime-type']);
+        if (this.blob) {
+          source += "&xpath=" + encodeURIComponent(this.xpath);
+          source += "&fname=" + encodeURIComponent(this.blob.name);
+          source += "&key=" + encodeURIComponent(this.blob.digest);
+          source += "&type=" + this._computeDocType(this.blob['mime-type']);
         }
         if (this.user) {
           source += "&user=" + encodeURIComponent(this.user.id);
