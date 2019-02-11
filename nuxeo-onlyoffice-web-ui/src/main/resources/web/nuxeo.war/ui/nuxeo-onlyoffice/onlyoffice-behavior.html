@@ -1,0 +1,157 @@
+<!--
+@license
+(C) Copyright Nuxeo Corp. (http://nuxeo.com/)
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+-->
+
+<script>
+  var Nuxeo = Nuxeo || {};
+  (function () {
+
+    /**
+     * @polymerBehavior Nuxeo.OnlyOfficeBehavior
+     */
+    Nuxeo.OnlyOfficeBehavior = {
+
+      properties: {
+
+        document: {
+          type: Object
+        },
+
+        iFrameSource: {
+          type: String,
+          value: 'about:blank'
+        },
+
+        blob: {
+          type: Object
+        },
+
+        mode: {
+          type: String,
+          value: 'desktop'
+        },
+
+        editMode: {
+          type: Boolean,
+          value: false,
+          computed: 'isEditMode(mode)'
+        },
+
+        xpath: {
+          type: String,
+          value: 'file:content'
+        },
+
+        textTypes: {
+          type: Array,
+          readOnly: true,
+          value: [
+            "application/msword",
+            "application/vnd.ms-word.document.macroenabled.12",
+            "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+            "application/vnd.ms-word.template.macroenabled.12",
+            "application/vnd.openxmlformats-officedocument.wordprocessingml.template"
+          ]
+        },
+
+        spreadsheetTypes: {
+          type: Array,
+          readOnly: true,
+          value: [
+            "application/vnd.ms-excel",
+            "application/vnd.ms-excel.sheet.macroenabled.12",
+            "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+            "application/vnd.ms-excel.template.macroenabled.12",
+            "application/vnd.openxmlformats-officedocument.spreadsheetml.template"
+          ]
+        },
+
+        presentationTypes: {
+          type: Array,
+          readOnly: true,
+          value: [
+            "application/vnd.ms-powerpoint",
+            "application/vnd.ms-powerpoint.presentation.macroenabled.12",
+            "application/vnd.openxmlformats-officedocument.presentationml.presentation",
+            "application/vnd.ms-powerpoint.slideshow.macroenabled.12",
+            "application/vnd.openxmlformats-officedocument.presentationml.slideshow",
+            "application/vnd.ms-powerpoint.template.macroenabled.12",
+            "application/vnd.openxmlformats-officedocument.presentationml.template",
+            "application/vnd.openxmlformats-officedocument.presentationml.slide"
+          ]
+        }
+      },
+
+      _deepFind: function (obj, props) {
+        for (var i = 0, path = props.split('/'), len = path.length; i < len; i++) {
+          if (!obj || obj === []) {
+            break;
+          }
+          obj = obj[path[i]];
+        }
+        return obj;
+      },
+
+      isOnlyOfficeDocument: function (document, xpath) {
+        if (!xpath) {
+          xpath = 'file:content';
+        }
+        var blob = document && this._deepFind(document.properties, xpath);
+        if (blob) {
+          return this.isOnlyOfficeCompatible(blob['mime-type']);
+        }
+        return false;
+      },
+
+      isOnlyOfficeCompatible: function (mime) {
+        if (this.textTypes.indexOf(mime) >= 0 ||
+          this.presentationTypes.indexOf(mime) >= 0 ||
+          this.spreadsheetTypes.indexOf(mime) >= 0) {
+          return true;
+        }
+        return false;
+      },
+
+      setOnlyOfficeDocument: function (document) {
+        this.blob = document && this._deepFind(document.properties, this.xpath);
+        if (this.blob) {
+          return this.isOnlyOfficeCompatible(this.blob['mime-type']);
+        }
+        return false;
+      },
+
+      getDocumentType: function (mime) {
+        if (this.presentationTypes.indexOf(mime) >= 0) {
+          return "presentation";
+        } else if (this.spreadsheetTypes.indexOf(mime) >= 0) {
+          return "spreadsheet";
+        }
+        return "text";
+      },
+
+      isEditMode: function () {
+        return this.mode !== 'embedded';
+      },
+
+      computeIFrameSource: function () {
+        var source = "../api/v1/onlyoffice/editor/" + this.document.uid + "/" + this.xpath + "?mode=" + this.mode;
+        return source;
+      },
+
+    };
+  })();
+
+</script>

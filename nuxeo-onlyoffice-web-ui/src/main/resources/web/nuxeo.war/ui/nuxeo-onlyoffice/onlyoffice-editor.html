@@ -15,6 +15,8 @@ See the License for the specific language governing permissions and
 limitations under the License.
 -->
 
+<link rel="import" href="onlyoffice-behavior.html">
+
 <!--
 A button element for editing a document in OnlyOffice
 
@@ -90,7 +92,6 @@ Example:
 
     </style>
 
-    <nuxeo-connection id="nxConn" user="{{user}}"></nuxeo-connection>
     <template is="dom-if" if="[[_isAvailable(document)]]">
       <div class="action" on-click="_openEditor">
         <paper-icon-button icon="[[icon]]" noink></paper-icon-button>
@@ -99,7 +100,7 @@ Example:
       <paper-tooltip>[[label]]</paper-tooltip>
 
       <nuxeo-dialog on-iron-overlay-closed="_editorClosed" id="dialog" with-backdrop>
-        <iframe id="editor" src="[[iFrameSource]]"></iframe>
+        <iframe src="[[iFrameSource]]"></iframe>
         <paper-icon-button id="open-in-new" icon="icons:open-in-new" on-click="_openInNew" noink></paper-icon-button>
         <paper-icon-button id="close-icon" icon="nuxeo:clear" on-click="_toggleDialog" noink></paper-icon-button>
       </nuxeo-dialog>
@@ -108,19 +109,8 @@ Example:
   <script>
     Polymer({
       is: 'onlyoffice-editor',
-      behaviors: [Nuxeo.I18nBehavior, Nuxeo.FiltersBehavior],
+      behaviors: [Nuxeo.I18nBehavior, Nuxeo.FiltersBehavior, Nuxeo.OnlyOfficeBehavior],
       properties: {
-        document: Object,
-
-        blob: Object,
-
-        user: Object,
-
-        token: String,
-
-        iFrameSource: String,
-
-        offset: Number,
 
         label: {
           type: String,
@@ -135,138 +125,22 @@ Example:
         icon: {
           type: String,
           value: 'icons:group-work'
-        },
-
-        mode: {
-          type: String,
-          value: 'desktop'
-        },
-
-        editMode: {
-          type: Boolean,
-          value: false,
-          computed: '_isEditMode(mode)'
-        },
-
-        xpath: {
-          type: String,
-          value: 'file:content'
-        },
-
-        textTypes: {
-          type: Array,
-          readOnly: true,
-          value: [
-            "application/msword",
-            "application/vnd.ms-word.document.macroenabled.12",
-            "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-            "application/vnd.ms-word.template.macroenabled.12",
-            "application/vnd.openxmlformats-officedocument.wordprocessingml.template"
-          ]
-        },
-
-        spreadsheetTypes: {
-          type: Array,
-          readOnly: true,
-          value: [
-            "application/vnd.ms-excel",
-            "application/vnd.ms-excel.sheet.macroenabled.12",
-            "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-            "application/vnd.ms-excel.template.macroenabled.12",
-            "application/vnd.openxmlformats-officedocument.spreadsheetml.template"
-          ]
-        },
-
-        presentationTypes: {
-          type: Array,
-          readOnly: true,
-          value: [
-            "application/vnd.ms-powerpoint",
-            "application/vnd.ms-powerpoint.presentation.macroenabled.12",
-            "application/vnd.openxmlformats-officedocument.presentationml.presentation",
-            "application/vnd.ms-powerpoint.slideshow.macroenabled.12",
-            "application/vnd.openxmlformats-officedocument.presentationml.slideshow",
-            "application/vnd.ms-powerpoint.template.macroenabled.12",
-            "application/vnd.openxmlformats-officedocument.presentationml.template",
-            "application/vnd.openxmlformats-officedocument.presentationml.slide"
-          ]
-        },
-      },
-
-      _deepFind: function (obj, props) {
-        for (var i = 0, path = props.split('/'), len = path.length; i < len; i++) {
-          if (!obj || obj === []) {
-            break;
-          }
-          obj = obj[path[i]];
         }
-        return obj;
       },
 
       _isAvailable: function (document) {
-        this.blob = document && this._deepFind(document.properties, this.xpath);
-        if (this.blob) {
-          var mime = this.blob['mime-type'];
-          if (this.textTypes.indexOf(mime) >= 0 ||
-            this.presentationTypes.indexOf(mime) >= 0 ||
-            this.spreadsheetTypes.indexOf(mime) >= 0) {
-            return true;
-          }
-        }
-        return false;
+        return this.setOnlyOfficeDocument(document);
       },
 
       _openEditor: function () {
-        if (this.token) {
-          this._tokenResponse();
-        } else {
-          return this._resolveToken();
-        }
-      },
-
-      _tokenResponse: function () {
-        if (this.token) {
-          if (this.blob) {
-            this.iFrameSource = this._computeIFrameSource();
-            this.$$('#dialog').toggle();
-          } else {
-            this.fire('notify', {
-              message: "No editable file found"
-            })
-          }
+        if (this.blob) {
+          this.iFrameSource = this.computeIFrameSource();
+          this.$$('#dialog').toggle();
         } else {
           this.fire('notify', {
-            message: "No editor available"
+            message: "No editable file found"
           })
         }
-      },
-
-      _isEditMode: function () {
-        return this.mode !== 'embedded';
-      },
-
-      _computeDocType: function (mime) {
-        if (this.presentationTypes.indexOf(mime) >= 0) {
-          return "presentation";
-        } else if (this.spreadsheetTypes.indexOf(mime) >= 0) {
-          return "spreadsheet";
-        }
-        return "text";
-      },
-
-      _computeIFrameSource: function () {
-        var source = "nuxeo-onlyoffice/onlyoffice-session.jsp?token=" + this.token + "&id=" + this.document.uid;
-        source += "&mode=" + this.mode;
-        if (this.blob) {
-          source += "&xpath=" + encodeURIComponent(this.xpath);
-          source += "&fname=" + encodeURIComponent(this.blob.name);
-          source += "&key=" + encodeURIComponent(this.blob.digest);
-          source += "&type=" + this._computeDocType(this.blob['mime-type']);
-        }
-        if (this.user) {
-          source += "&user=" + encodeURIComponent(this.user.id);
-        }
-        return source;
       },
 
       _editorClosed: function () {
@@ -288,57 +162,9 @@ Example:
       _openInNew: function () {
         this._toggleDialog();
         this.iFrameSource = "about:blank";
-        window.open(this._computeIFrameSource(), '_blank');
-      },
-
-      /** Resolve the token */
-      _resolveToken: function () {
-        const options = {
-          method: 'get',
-          headers: {
-            accept: 'text/plain,application/json'
-          }
-        };
-        const params = {
-          "applicationName": "OnlyOffice",
-          "deviceId": "editor",
-          "deviceDescription": "Browser",
-          "permission": "rw"
-        };
-        return this.$.nxConn.request().then((request) => {
-          this._request = request;
-          return this._doExecute(params, options);
-        });
-      },
-
-      _doExecute: function (params, options) {
-        return this._request
-          .path('../../../../authentication/token')
-          .queryParams(params)
-          .execute(options)
-          .then((response) => response.text().then((text) => {
-            try {
-              this.token = text;
-              this._tokenResponse();
-              return this.token;
-            } catch (e) {
-              return null;
-            }
-          }))
-          .catch((error) => {
-            this.token = null;
-            if (error.response) {
-              if (error.response.status === 401) {
-                this.dispatchEvent(new CustomEvent('unauthorized-request', {
-                  bubbles: true,
-                  composed: true,
-                  detail: error,
-                }));
-              }
-              throw error;
-            }
-          })
+        window.open(this.computeIFrameSource(), '_blank');
       }
+
     });
 
   </script>

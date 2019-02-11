@@ -126,9 +126,6 @@ limitations under the License.
       var callback = location.origin + '/nuxeo/api/v1/onlyoffice/callback/' +
         uid + '/' + xpath + '?token=' + token;
 
-      console.log(blob);
-      console.log(callback);
-
       var config = {
         "documentType": docType,
         "editorConfig": {

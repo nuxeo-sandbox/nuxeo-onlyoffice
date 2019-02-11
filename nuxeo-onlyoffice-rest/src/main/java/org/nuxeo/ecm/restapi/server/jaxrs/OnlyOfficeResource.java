@@ -2,30 +2,38 @@ package org.nuxeo.ecm.restapi.server.jaxrs;
 
 import java.io.IOException;
 import java.io.InputStream;
+import java.net.URI;
 import java.nio.charset.Charset;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 import javax.ws.rs.Consumes;
+import javax.ws.rs.GET;
 import javax.ws.rs.POST;
 import javax.ws.rs.Path;
 import javax.ws.rs.PathParam;
 import javax.ws.rs.Produces;
+import javax.ws.rs.QueryParam;
 import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
 import javax.ws.rs.core.Response.Status;
+import javax.ws.rs.core.UriBuilder;
 
 import org.apache.commons.io.IOUtils;
+import org.apache.commons.lang3.StringUtils;
 import org.nuxeo.ecm.automation.core.util.DocumentHelper;
 import org.nuxeo.ecm.core.api.Blob;
 import org.nuxeo.ecm.core.api.Blobs;
 import org.nuxeo.ecm.core.api.CoreSession;
 import org.nuxeo.ecm.core.api.DocumentModel;
+import org.nuxeo.ecm.core.api.DocumentNotFoundException;
 import org.nuxeo.ecm.core.api.IdRef;
+import org.nuxeo.ecm.core.api.PropertyException;
 import org.nuxeo.ecm.core.api.VersioningOption;
 import org.nuxeo.ecm.core.api.blobholder.BlobHolder;
 import org.nuxeo.ecm.core.api.versioning.VersioningService;
 import org.nuxeo.ecm.core.schema.FacetNames;
+import org.nuxeo.ecm.tokenauth.service.TokenAuthenticationService;
 import org.nuxeo.ecm.webengine.model.WebObject;
 import org.nuxeo.ecm.webengine.model.impl.DefaultObject;
 import org.nuxeo.runtime.api.Framework;
@@ -47,7 +55,7 @@ import com.sun.jersey.api.client.config.DefaultClientConfig;
 @WebObject(type = "onlyoffice")
 @Consumes(MediaType.WILDCARD)
 @Produces(MediaType.APPLICATION_JSON)
-public class OnlyOfficeResource extends DefaultObject {
+public class OnlyOfficeResource extends DefaultObject implements OnlyOfficeTypes {
 
     protected static final Logger LOG = LoggerFactory.getLogger(OnlyOfficeResource.class);
 
@@ -60,6 +68,8 @@ public class OnlyOfficeResource extends DefaultObject {
      * Create a new document version on save callback.
      */
     public static final String VERSION_ON_SAVE = "onlyoffice.version.save";
+
+    static final String APP_NAME = "OnlyOffice";
 
     protected boolean versionOnSave = false;
 
@@ -220,6 +230,93 @@ public class OnlyOfficeResource extends DefaultObject {
         VersioningOption vo = major ? VersioningOption.MAJOR : VersioningOption.MINOR;
         doc.putContextData(VersioningService.VERSIONING_OPTION, vo);
         return doc;
+    }
+
+    private String getOfficeType(String mime) {
+        if (TEXT_TYPES.contains(mime)) {
+            return TEXT;
+        } else if (PRESENTATION_TYPES.contains(mime)) {
+            return PRESENTATION;
+        } else if (SPREADSHEET_TYPES.contains(mime)) {
+            return SPREADSHEET;
+        }
+        return null;
+    }
+
+    /**
+     * Redirect to open an OnlyOffice editor (example: for use in an iFrame)
+     * 
+     * @param id document ID
+     * @param xpath blob path
+     * @param mode view mode
+     * @return redirect URL
+     * @throws Exception
+     */
+    @GET
+    @Path("editor/{id}/{xpath:((?:(?!/@).)*)}")
+    public Response sendRedirect(@PathParam("id") String id, @PathParam("xpath") String xpath,
+            @QueryParam("mode") String mode) {
+
+        if (StringUtils.isBlank(id)) {
+            return Response.status(Status.NOT_FOUND).build();
+        }
+
+        if (StringUtils.isBlank(xpath)) {
+            xpath = "file:content";
+        }
+
+        if (StringUtils.isBlank(mode)) {
+            mode = "desktop";
+        }
+
+        try {
+            CoreSession session = getContext().getCoreSession();
+            DocumentModel model = session.getDocument(new IdRef(id));
+
+            Blob blob = (Blob) model.getPropertyValue(xpath);
+            if (blob == null) {
+                BlobHolder bh = model.getAdapter(BlobHolder.class);
+                if (bh != null) {
+                    blob = bh.getBlob();
+                }
+            }
+
+            if (blob == null) {
+                LOG.warn("Blob not found for OnlyOffice editor: " + id + "/" + xpath);
+                return Response.status(Status.NOT_FOUND).build();
+            }
+
+            String user = getContext().getPrincipal().getName();
+            String type = getOfficeType(blob.getMimeType());
+
+            if (type == null) {
+                return Response.status(Status.UNSUPPORTED_MEDIA_TYPE)
+                               .entity("mime-type is not supported: " + blob.getMimeType())
+                               .build();
+            }
+
+            TokenAuthenticationService tokenSvc = Framework.getService(TokenAuthenticationService.class);
+            String token = tokenSvc.acquireToken(user, APP_NAME, "editor", "Browser", "rw");
+
+            UriBuilder redirect = UriBuilder.fromUri("../ui/nuxeo-onlyoffice/onlyoffice-session.jsp")
+                                            .queryParam("token", token)
+                                            .queryParam("id", model.getId())
+                                            .queryParam("mode", mode)
+                                            .queryParam("user", user)
+                                            .queryParam("xpath", xpath)
+                                            .queryParam("fname", blob.getFilename())
+                                            .queryParam("key", blob.getDigest())
+                                            .queryParam("type", type);
+            URI location = redirect.build();
+
+            return Response.temporaryRedirect(location).build();
+        } catch (DocumentNotFoundException | PropertyException pex) {
+            LOG.warn("Error performing redirect", pex);
+            return Response.status(Status.NOT_FOUND).build();
+        } catch (Exception ex) {
+            LOG.error("Unexpected error with redirect", ex);
+            return Response.status(Status.INTERNAL_SERVER_ERROR).build();
+        }
     }
 
 }
