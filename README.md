@@ -21,6 +21,8 @@ mvn clean install
 
 ## Configure (nuxeo.conf)
 
+The `nuxeo.url` property must be the fully qualified URL for your nuxeo instance, such as `https://my.nuxeo.org/nuxeo`
+
 Editor properties:
 
 ```

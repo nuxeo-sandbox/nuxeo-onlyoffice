@@ -297,8 +297,13 @@ public class OnlyOfficeResource extends DefaultObject implements OnlyOfficeTypes
 
             TokenAuthenticationService tokenSvc = Framework.getService(TokenAuthenticationService.class);
             String token = tokenSvc.acquireToken(user, APP_NAME, "editor", "Browser", "rw");
+            
+            String nuxeoUrl = Framework.getProperty("nuxeo.url", "http://localhost:8080/nuxeo/");
+            if (!nuxeoUrl.endsWith("/")) {
+                nuxeoUrl += "/";
+            }
 
-            UriBuilder redirect = UriBuilder.fromUri("../ui/nuxeo-onlyoffice/onlyoffice-session.jsp")
+            UriBuilder redirect = UriBuilder.fromUri(nuxeoUrl + "ui/nuxeo-onlyoffice/onlyoffice-session.jsp")
                                             .queryParam("token", token)
                                             .queryParam("id", model.getId())
                                             .queryParam("mode", mode)
