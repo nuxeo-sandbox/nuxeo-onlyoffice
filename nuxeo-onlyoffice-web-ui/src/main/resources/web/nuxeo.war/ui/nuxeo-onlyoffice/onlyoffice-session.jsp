@@ -103,7 +103,7 @@ limitations under the License.
       var mode = urlParams.get("mode") || 'desktop';
       var userId = urlParams.get("user");
 
-      var fileType = fname.substring(fname.lastIndexOf(".") + 1);
+      var fileType = fname.substring(fname.lastIndexOf(".") + 1).toLowerCase();
       var writable = false;
 
       if (mode !== 'embedded') {
